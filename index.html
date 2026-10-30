@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASAD AI</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <div class="app" id="app">
+    <div class="scrim" id="scrim"></div>
+
+    <!-- ===== Sidebar ===== -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand"><span class="brand-icon">A</span><span>ASAD AI</span></div>
+
+      <button class="new-chat" id="newChatBtn">
+        <span>＋ New chat</span><kbd>Ctrl K</kbd>
+      </button>
+
+      <input id="chatSearch" class="search" type="search"
+        placeholder="Search chats..." aria-label="Search chats" autocomplete="off">
+
+      <div class="side-label">RECENT CHATS</div>
+      <nav id="chatList" class="chat-list" aria-label="Chats"></nav>
+
+      <div class="sidebar-bottom">
+        <div class="profile-avatar">A</div>
+        <div class="profile-text"><strong>ASAD AI</strong><small>Personal workspace</small></div>
+        <button id="themeBtn" class="icon-btn" title="Toggle theme" aria-label="Toggle theme">◐</button>
+        <button id="sideSettingsBtn" class="icon-btn" title="API Settings" aria-label="API Settings">⚙</button>
+      </div>
+    </aside>
+
+    <!-- ===== Main ===== -->
+    <main class="main">
+      <header class="topbar">
+        <button id="menuBtn" class="icon-btn menu-btn" aria-label="Open menu">☰</button>
+
+        <div class="provider-control">
+          <span class="online-dot" id="onlineDot"></span>
+          <select id="providerSelect" aria-label="Select AI provider"></select>
+          <span class="model-badge" id="modelBadge"></span>
+        </div>
+
+        <div class="top-actions">
+          <button id="exportBtn" class="ghost-btn" title="Download this chat as Markdown">⤓ <span>Export</span></button>
+          <button id="settingsBtn" class="settings-btn">⚙ <span>API Settings</span></button>
+        </div>
+      </header>
+
+      <section class="chat-area" id="chatArea">
+        <div class="welcome" id="welcome">
+          <div class="hero-icon">✦</div>
+          <p class="eyebrow">YOUR PERSONAL AI</p>
+          <h1>What can I help you<br><span>create today?</span></h1>
+          <p class="welcome-sub">8 AI providers, one place. Pick <strong>Auto</strong> and it switches to the next provider if one fails.</p>
+
+          <div class="suggestions">
+            <button class="suggestion" data-prompt="Teach me JavaScript from the basics">
+              <span>⌘</span><strong>Learn JavaScript</strong><small>Start with the basics</small>
+            </button>
+            <button class="suggestion" data-prompt="Create a modern animated website using HTML and CSS">
+              <span>✧</span><strong>Build a website</strong><small>Design something amazing</small>
+            </button>
+            <button class="suggestion" data-prompt="Give me 5 creative project ideas for a beginner programmer">
+              <span>↗</span><strong>Get ideas</strong><small>Discover new projects</small>
+            </button>
+            <button class="suggestion" data-prompt="Explain artificial intelligence in simple Hindi">
+              <span>◎</span><strong>Understand AI</strong><small>Learn in simple language</small>
+            </button>
+          </div>
+        </div>
+
+        <div id="messages" class="messages" aria-live="polite"></div>
+      </section>
+
+      <footer class="composer-area">
+        <form id="chatForm" class="composer">
+          <textarea id="messageInput" rows="1" placeholder="Message ASAD AI..."
+            aria-label="Your message"></textarea>
+          <div class="composer-bottom">
+            <span id="chatProviderLabel">Using Auto</span>
+            <span class="hint">Enter to send · Shift+Enter for new line</span>
+            <button id="sendBtn" type="submit" aria-label="Send">↑</button>
+          </div>
+        </form>
+        <p class="disclaimer">ASAD AI can make mistakes. Verify important information.</p>
+      </footer>
+    </main>
+  </div>
+
+  <!-- ===== API Settings Modal ===== -->
+  <div id="settingsModal" class="modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="modal-header">
+        <div>
+          <div class="modal-kicker">PERSONALIZE YOUR AI</div>
+          <h2 id="settingsTitle">API Settings</h2>
+          <p>Connect your preferred AI provider.</p>
+        </div>
+        <button id="closeSettingsBtn" class="close-btn" aria-label="Close">✕</button>
+      </div>
+
+      <label for="settingsProvider">AI provider</label>
+      <select id="settingsProvider" class="field"></select>
+
+      <div class="provider-help" id="providerHelp"></div>
+
+      <label for="apiKeyInput">API key</label>
+      <div class="key-row">
+        <input id="apiKeyInput" class="field" type="password"
+          placeholder="Paste your API key" autocomplete="off" spellcheck="false">
+        <button id="toggleKeyBtn" class="show-btn" type="button">Show</button>
+      </div>
+
+      <div id="cfRow" hidden>
+        <label for="cfAccountInput">Cloudflare Account ID</label>
+        <input id="cfAccountInput" class="field" type="text"
+          placeholder="Paste your Account ID" autocomplete="off" spellcheck="false">
+      </div>
+
+      <p class="security-note">
+        Keys saved here stay in this browser only. Keys in the <code>.env</code> file are
+        used first and are more secure.
+      </p>
+
+      <div id="settingsMessage" class="settings-message" role="status"></div>
+
+      <div class="modal-actions">
+        <button id="removeKeyBtn" class="remove-btn" type="button">Remove key</button>
+        <button id="saveKeyBtn" class="save-btn" type="button">Save API Key</button>
+      </div>
+
+      <div class="provider-statuses">
+        <h3>Your providers</h3>
+        <div id="providerStatusList"></div>
+      </div>
+
+      <div class="provider-statuses">
+        <h3>Settings password</h3>
+        <p class="muted" id="lockState"></p>
+        <div class="key-row">
+          <input id="newPassword" class="field" type="password"
+            placeholder="New password" autocomplete="new-password">
+          <button id="savePasswordBtn" class="show-btn" type="button">Change</button>
+        </div>
+      </div>
+
+      <div class="provider-statuses">
+        <h3>Data</h3>
+        <button id="clearChatsBtn" class="remove-btn" type="button">Delete all chats</button>
+      </div>
+
+      <p class="modal-footer-note">Free usage depends on each provider's limits.</p>
+    </div>
+  </div>
+
+  <!-- ===== Settings Lock ===== -->
+  <div id="settingsLock" class="settings-lock" hidden>
+    <div class="lock-card">
+      <div class="lock-icon">🔐</div>
+      <h2 id="lockTitle">ASAD AI Security</h2>
+      <p id="lockText">Enter your password to access API Settings.</p>
+
+      <form id="lockForm">
+        <input id="lockPassword" type="password" placeholder="Enter security password"
+          autocomplete="current-password" required>
+        <input id="lockConfirm" type="password" placeholder="Confirm password"
+          autocomplete="new-password" hidden>
+        <button id="lockSubmit" type="submit">Unlock Settings</button>
+        <p id="lockError"></p>
+        <button type="button" id="cancelLock">Cancel</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>
