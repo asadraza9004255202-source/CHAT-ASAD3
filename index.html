@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ASAD AI</title>
+  <link rel="icon" href="asad.jpg">
   <link rel="stylesheet" href="style.css">
   <script src="script.js" defer></script>
 </head>
@@ -26,7 +27,7 @@
       <nav id="chatList" class="chat-list" aria-label="Chats"></nav>
 
       <div class="sidebar-bottom">
-        <div class="profile-avatar">A</div>
+        <div class="profile-avatar"><img src="asad.jpg" alt="Asad"></div>
         <div class="profile-text"><strong>ASAD AI</strong><small>Personal workspace</small></div>
         <button id="themeBtn" class="icon-btn" title="Toggle theme" aria-label="Toggle theme">◐</button>
         <button id="sideSettingsBtn" class="icon-btn" title="API Settings" aria-label="API Settings">⚙</button>
@@ -52,7 +53,17 @@
 
       <section class="chat-area" id="chatArea">
         <div class="welcome" id="welcome">
-          <div class="hero-icon">✦</div>
+          <div class="hero-photo" id="heroPhoto" title="Click me!">
+            <span class="orbit o1"><i></i></span>
+            <span class="orbit o2"><i></i></span>
+            <span class="pulse"></span><span class="pulse p2"></span>
+            <div class="photo-wrap" id="photoWrap">
+              <div class="photo-clip"><img src="asad.jpg" alt="Asad" width="140" height="140"></div>
+            </div>
+            <span class="spark sp1">✦</span><span class="spark sp2">✧</span>
+            <span class="spark sp3">✦</span><span class="spark sp4">✧</span>
+          </div>
+          <div class="credit">Built by <strong>Asad</strong></div>
           <p class="eyebrow">YOUR PERSONAL AI</p>
           <h1>What can I help you<br><span>create today?</span></h1>
           <p class="welcome-sub">8 AI providers, one place. Pick <strong>Auto</strong> and it switches to the next provider if one fails.</p>
