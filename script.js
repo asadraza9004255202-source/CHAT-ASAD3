@@ -141,6 +141,7 @@
   let serverStatus = {};
   let busy = false;
   let controller = null;
+  const animateIds = new Set(); // ids of replies that should "type out"
   let unlocked = false; // settings always start locked on every page load
 
   if (selected !== "auto" && !byId[selected]) selected = "auto";
@@ -304,6 +305,33 @@
     }
   }
 
+  // Reveal a fresh reply progressively (typewriter effect, about 2.5 seconds max)
+  function typeInto(node, full, actions) {
+    if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      node.innerHTML = renderMarkdown(full);
+      return;
+    }
+    const total = full.length;
+    const step = Math.max(2, Math.ceil(total / 150));
+    let i = 0;
+    node.classList.add("typing-live");
+    if (actions) actions.style.visibility = "hidden";
+    const timer = setInterval(() => {
+      if (!node.isConnected) { clearInterval(timer); return; }
+      i = Math.min(total, i + step);
+      let part = full.slice(0, i);
+      // keep an unfinished code block renderable
+      if ((part.match(/```/g) || []).length % 2 === 1) part += "\n```";
+      node.innerHTML = renderMarkdown(part);
+      el.chatArea.scrollTop = el.chatArea.scrollHeight;
+      if (i >= total) {
+        clearInterval(timer);
+        node.classList.remove("typing-live");
+        if (actions) actions.style.visibility = "";
+      }
+    }, 16);
+  }
+
   function buildMessage(m, index, isLast) {
     const wrap = document.createElement("div");
 
@@ -339,8 +367,6 @@
 
     const content = document.createElement("div");
     content.className = "content";
-    content.innerHTML = renderMarkdown(m.text);
-
     const actions = document.createElement("div");
     actions.className = "msg-actions";
     const copy = document.createElement("button");
@@ -361,6 +387,13 @@
 
     body.append(head, content, actions);
     wrap.append(av, body);
+
+    if (m.id && animateIds.has(m.id)) {
+      animateIds.delete(m.id);
+      typeInto(content, m.text, actions);
+    } else {
+      content.innerHTML = renderMarkdown(m.text);
+    }
     return wrap;
   }
 
@@ -390,7 +423,8 @@
       el.messages.appendChild(buildMessage(m, i, i === msgs.length - 1 && m.role === "assistant" && !busy));
     });
     if (busy) el.messages.appendChild(buildTyping());
-    el.chatArea.scrollTop = el.chatArea.scrollHeight;
+    // empty chat: stay at the top so the welcome photo is fully visible
+    el.chatArea.scrollTop = (msgs.length || busy) ? el.chatArea.scrollHeight : 0;
   }
 
   function renderAll() {
@@ -510,7 +544,8 @@
         });
         const data = await r.json().catch(() => ({}));
         if (!r.ok || !data.answer) throw new Error(data.error || "HTTP " + r.status);
-        reply = { role: "assistant", text: data.answer, provider: p, model: data.model, t: Date.now() };
+        reply = { id: uid(), role: "assistant", text: data.answer, provider: p, model: data.model, t: Date.now() };
+        animateIds.add(reply.id);
         break;
       } catch (e) {
         if (e && e.name === "AbortError") { aborted = true; break; }
@@ -843,6 +878,45 @@
       else closeSidebar();
     }
   });
+
+  // ---------------------------------------------------------------------------
+  // Hero photo: 3D tilt that follows the mouse + click burst
+  // ---------------------------------------------------------------------------
+  (function heroPhoto() {
+    const hero = $("#heroPhoto");
+    const wrap = $("#photoWrap");
+    if (!hero || !wrap) return;
+
+    document.addEventListener("pointermove", e => {
+      if (el.welcome.hidden) return;
+      const r = hero.getBoundingClientRect();
+      const dx = (e.clientX - (r.left + r.width / 2)) / Math.max(window.innerWidth / 2, 1);
+      const dy = (e.clientY - (r.top + r.height / 2)) / Math.max(window.innerHeight / 2, 1);
+      wrap.style.setProperty("--ry", Math.max(-1, Math.min(1, dx)) * 22 + "deg");
+      wrap.style.setProperty("--rx", Math.max(-1, Math.min(1, dy)) * -22 + "deg");
+    });
+    document.addEventListener("pointerleave", () => {
+      wrap.style.setProperty("--rx", "0deg");
+      wrap.style.setProperty("--ry", "0deg");
+    });
+
+    hero.addEventListener("click", () => {
+      hero.classList.remove("boom");
+      void hero.offsetWidth; // restart animation
+      hero.classList.add("boom");
+      for (let i = 0; i < 36; i++) {
+        const p = document.createElement("span");
+        p.className = "particle";
+        const angle = (Math.PI * 2 * i) / 36 + Math.random() * 0.4;
+        const dist = 80 + Math.random() * 90;
+        p.style.setProperty("--x", Math.cos(angle) * dist + "px");
+        p.style.setProperty("--y", Math.sin(angle) * dist + "px");
+        p.style.setProperty("--h", String(Math.floor(Math.random() * 360)));
+        hero.appendChild(p);
+        setTimeout(() => p.remove(), 1000);
+      }
+    });
+  })();
 
   // ---------------------------------------------------------------------------
   // Init
