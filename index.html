@@ -64,6 +64,7 @@
             <span class="spark sp3">✦</span><span class="spark sp4">✧</span>
           </div>
           <div class="credit">Built by <strong>Asad</strong></div>
+          <button id="talkBtn" class="talk-chip" type="button">🎙 Tap the photo to talk</button>
           <p class="eyebrow">YOUR PERSONAL AI</p>
           <h1>What can I help you<br><span>create today?</span></h1>
           <p class="welcome-sub">8 AI providers, one place. Pick <strong>Auto</strong> and it switches to the next provider if one fails.</p>
@@ -185,6 +186,36 @@
         <button type="button" id="cancelLock">Cancel</button>
       </form>
     </div>
+  </div>
+
+  <!-- ===== Voice talk ===== -->
+  <div id="talk" class="talk" hidden>
+    <button id="talkClose" class="close-btn talk-close" aria-label="Close voice chat">✕</button>
+
+    <div class="talk-stage" id="talkStage" data-state="idle">
+      <span class="t-ring r1"></span><span class="t-ring r2"></span><span class="t-ring r3"></span>
+      <div class="talk-photo"><img src="asad.jpg" alt="Asad"></div>
+    </div>
+
+    <div class="wave" id="wave" aria-hidden="true">
+      <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+    </div>
+
+    <p id="talkStatus" class="talk-status">Tap the mic and speak</p>
+    <p id="talkCaption" class="talk-caption"></p>
+
+    <div class="talk-controls">
+      <select id="talkLang" aria-label="Speaking language">
+        <option value="hi-IN">Hindi / Hinglish</option>
+        <option value="en-IN">English</option>
+      </select>
+      <button id="talkMic" class="mic-btn" type="button" aria-label="Microphone">🎤</button>
+    </div>
+
+    <form id="talkForm" class="talk-form" autocomplete="off">
+      <input id="talkInput" type="text" placeholder="Or type here and I will answer by voice..." aria-label="Type a message">
+      <button type="submit" aria-label="Send">↑</button>
+    </form>
   </div>
 
   <div id="toast" class="toast" role="status" hidden></div>
