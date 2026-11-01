@@ -98,7 +98,7 @@ app.get("/api/status", (_req, res) => {
 
 app.post("/api/chat", async (req, res) => {
   try {
-    const { provider, message, history, apiKey, accountId } = req.body || {};
+    const { provider, message, history, apiKey, accountId, voice } = req.body || {};
 
     const config = PROVIDERS[provider];
 
@@ -144,6 +144,16 @@ app.post("/api/chat", async (req, res) => {
         "(Hindi written in English letters). If the user writes in Devanagari, reply in Hindi. " +
         "If the user writes in English, reply in English. Never switch to Spanish unless the user writes Spanish."
     }];
+
+    // Voice chat: the reply is read aloud, so keep it short and speakable
+    if (voice === true) {
+      messages[0].content +=
+        " VOICE MODE (this overrides the Hinglish rule above): the user is talking to you by voice " +
+        "and your reply will be read aloud. Reply in 1 to 3 short, natural, friendly sentences. " +
+        "No markdown, no lists, no code, no emojis, no asterisks. " +
+        "If the user speaks Hindi or Hinglish, reply in Hindi written in Devanagari script so it can be spoken properly. " +
+        "If the user speaks English, reply in English.";
+    }
 
     if (Array.isArray(history)) {
       for (const item of history.slice(-10)) {
