@@ -609,6 +609,118 @@ body::after {
 }
 @keyframes rainbow { to { background-position: 300% 0; } }
 
+/* "tap to talk" chip */
+.talk-chip {
+  display: block; margin: 0 auto 18px; padding: 8px 18px; border-radius: 999px; font-size: 13px;
+  border: 1px solid var(--accent); background: rgba(139, 123, 255, .12); color: var(--text);
+  animation: chipPulse 2.2s ease-in-out infinite;
+}
+.talk-chip:hover { background: rgba(139, 123, 255, .25); transform: translateY(-2px); }
+@keyframes chipPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(139, 123, 255, .5); }
+  50%      { box-shadow: 0 0 0 10px rgba(139, 123, 255, 0); }
+}
+
+/* =====================================================================
+   VOICE TALK OVERLAY
+   ===================================================================== */
+.talk {
+  position: fixed; inset: 0; z-index: 150; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 20px; text-align: center;
+  background:
+    radial-gradient(700px 500px at 50% 25%, rgba(139, 123, 255, .28), transparent 65%),
+    radial-gradient(600px 500px at 50% 100%, rgba(95, 168, 255, .18), transparent 65%),
+    rgba(5, 8, 18, .94);
+  backdrop-filter: blur(14px);
+  animation: fadeIn .25s ease;
+}
+[data-theme="light"] .talk { background: radial-gradient(700px 500px at 50% 25%, rgba(106, 90, 240, .22), transparent 65%), rgba(244, 246, 252, .95); }
+.talk-close { position: absolute; top: 18px; right: 18px; }
+
+.talk-stage { position: relative; width: 260px; height: 260px; display: grid; place-items: center; margin-bottom: 8px; }
+.talk-photo {
+  position: relative; width: 170px; height: 170px; border-radius: 50%; z-index: 2;
+  border: 4px solid var(--bg); box-shadow: 0 0 0 5px var(--accent), 0 0 50px rgba(139, 123, 255, .7);
+  overflow: hidden; transition: box-shadow .3s ease;
+}
+.talk-photo img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; display: block; }
+.t-ring { position: absolute; inset: 45px; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; }
+
+/* idle: slow breathing */
+.talk-stage[data-state="idle"] .talk-photo { animation: breathe 3.5s ease-in-out infinite; }
+@keyframes breathe { 50% { transform: scale(1.04); } }
+
+/* listening: green fast ripples */
+.talk-stage[data-state="listening"] .talk-photo { box-shadow: 0 0 0 5px #4ade80, 0 0 60px rgba(74, 222, 128, .75); }
+.talk-stage[data-state="listening"] .t-ring { border-color: #4ade80; animation: ripple 1.6s ease-out infinite; }
+.talk-stage[data-state="listening"] .t-ring.r2 { animation-delay: .5s; }
+.talk-stage[data-state="listening"] .t-ring.r3 { animation-delay: 1s; }
+@keyframes ripple { 0% { opacity: .9; transform: scale(.8); } 100% { opacity: 0; transform: scale(1.5); } }
+
+/* thinking: spinning rainbow ring */
+.talk-stage[data-state="thinking"]::before {
+  content: ""; position: absolute; width: 190px; height: 190px; border-radius: 50%; z-index: 1;
+  background: conic-gradient(#8b7bff, #5fa8ff, #4ade80, #ffd36b, #ff7bd5, #8b7bff);
+  animation: spin 1s linear infinite; box-shadow: 0 0 40px rgba(139, 123, 255, .8);
+}
+.talk-stage[data-state="thinking"] .talk-photo { box-shadow: none; animation: breathe 1.4s ease-in-out infinite; }
+
+/* speaking: beating glow + slow ripples */
+.talk-stage[data-state="speaking"] .talk-photo { animation: talkBeat .55s ease-in-out infinite; box-shadow: 0 0 0 5px #5fa8ff, 0 0 70px rgba(95, 168, 255, .85); }
+.talk-stage[data-state="speaking"] .t-ring { border-color: #5fa8ff; animation: ripple 1.2s ease-out infinite; }
+.talk-stage[data-state="speaking"] .t-ring.r2 { animation-delay: .4s; }
+.talk-stage[data-state="speaking"] .t-ring.r3 { animation-delay: .8s; }
+@keyframes talkBeat { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+
+/* sound wave bars */
+.wave { display: flex; align-items: center; justify-content: center; gap: 5px; height: 44px; margin-bottom: 6px; }
+.wave i { width: 5px; height: 6px; border-radius: 4px; background: var(--accent-grad); opacity: .4; transition: opacity .2s; }
+.talk-stage[data-state="listening"] ~ .wave i,
+.talk-stage[data-state="speaking"] ~ .wave i { opacity: 1; animation: bar .9s ease-in-out infinite; }
+.talk-stage[data-state="listening"] ~ .wave i { background: #4ade80; }
+.wave i:nth-child(1) { --h: 18px; animation-delay: 0s !important; }
+.wave i:nth-child(2) { --h: 30px; animation-delay: .1s !important; }
+.wave i:nth-child(3) { --h: 22px; animation-delay: .2s !important; }
+.wave i:nth-child(4) { --h: 40px; animation-delay: .05s !important; }
+.wave i:nth-child(5) { --h: 28px; animation-delay: .25s !important; }
+.wave i:nth-child(6) { --h: 40px; animation-delay: .15s !important; }
+.wave i:nth-child(7) { --h: 22px; animation-delay: .3s !important; }
+.wave i:nth-child(8) { --h: 30px; animation-delay: .08s !important; }
+.wave i:nth-child(9) { --h: 18px; animation-delay: .22s !important; }
+@keyframes bar { 50% { height: var(--h); } }
+
+.talk-status { margin: 4px 0 6px; font-size: 20px; font-weight: 700; }
+.talk-caption { min-height: 48px; max-width: 560px; margin: 0 0 16px; color: var(--muted); line-height: 1.55; font-size: 15px; }
+
+.talk-controls { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.talk-controls select {
+  padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--panel); outline: none;
+}
+.mic-btn {
+  width: 74px; height: 74px; border-radius: 50%; border: 0; font-size: 30px; color: #fff;
+  background: var(--accent-grad); box-shadow: 0 8px 30px rgba(139, 123, 255, .55); transition: .2s;
+}
+.mic-btn:hover { transform: scale(1.08); }
+.mic-btn:active { transform: scale(.92); }
+.talk-stage[data-state="listening"] ~ .talk-controls .mic-btn {
+  background: linear-gradient(135deg, #4ade80, #16a34a); animation: stopPulse 1.1s ease-in-out infinite;
+}
+
+.talk-form { display: flex; gap: 8px; width: 100%; max-width: 460px; }
+.talk-form input {
+  flex: 1; padding: 12px 16px; border-radius: 14px; border: 1px solid var(--border); background: var(--panel); outline: none;
+}
+.talk-form input:focus { border-color: var(--accent); }
+.talk-form button {
+  width: 46px; border-radius: 14px; border: 0; background: var(--accent-grad); color: #fff; font-size: 20px; font-weight: 700;
+}
+
+@media (max-width: 520px) {
+  .talk-stage { width: 220px; height: 220px; }
+  .talk-photo { width: 140px; height: 140px; }
+  .t-ring { inset: 38px; }
+}
+
 @media (max-height: 800px) {
   .welcome { padding-top: 2vh; }
   .welcome h1 { font-size: clamp(26px, 4vw, 38px); }
