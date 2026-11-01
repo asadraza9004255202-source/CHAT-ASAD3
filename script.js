@@ -140,6 +140,7 @@
   let selected = LS.get("asad.provider", "auto");
   let serverStatus = {};
   let busy = false;
+  let voiceMode = false; // true while the voice-talk overlay is open
   let controller = null;
   const animateIds = new Set(); // ids of replies that should "type out"
   let unlocked = false; // settings always start locked on every page load
@@ -539,7 +540,8 @@
             message: text,
             history,
             apiKey: keys[p] || "",
-            accountId: cfAccount || ""
+            accountId: cfAccount || "",
+            voice: voiceMode
           })
         });
         const data = await r.json().catch(() => ({}));
@@ -916,6 +918,225 @@
         setTimeout(() => p.remove(), 1000);
       }
     });
+  })();
+
+  // ---------------------------------------------------------------------------
+  // Voice talk: click the photo, speak, and the AI answers out loud
+  // ---------------------------------------------------------------------------
+  (function talk() {
+    const t = {
+      root: $("#talk"), stage: $("#talkStage"), status: $("#talkStatus"), caption: $("#talkCaption"),
+      mic: $("#talkMic"), lang: $("#talkLang"), form: $("#talkForm"), input: $("#talkInput"),
+      close: $("#talkClose"), chip: $("#talkBtn"), hero: $("#heroPhoto")
+    };
+    if (!t.root) return;
+
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const synth = window.speechSynthesis;
+    let isOpen = false;
+    let state = "idle";
+    let rec = null;
+    let handsFree = true;   // after the AI finishes speaking, listen again
+    let watchdog = null;
+
+    function setState(s, msg) {
+      state = s;
+      t.stage.dataset.state = s;
+      if (msg !== undefined) t.status.textContent = msg;
+    }
+
+    function stopAll() {
+      clearTimeout(watchdog);
+      if (rec) { try { rec.abort(); } catch { /* ignore */ } rec = null; }
+      if (synth) { try { synth.cancel(); } catch { /* ignore */ } }
+    }
+
+    function openTalk() {
+      if (isOpen) return;
+      isOpen = true;
+      voiceMode = true;
+      handsFree = true;
+      t.root.hidden = false;
+      t.caption.textContent = "";
+      setState("idle", SR ? "Tap the mic and speak" : "Voice input needs Chrome. You can type below.");
+      if (SR) setTimeout(() => { if (isOpen && state === "idle") startListening(); }, 500);
+    }
+
+    function closeTalk() {
+      if (!isOpen) return;
+      isOpen = false;
+      voiceMode = false;
+      handsFree = false;
+      stopAll();
+      t.root.hidden = true;
+      setState("idle", "");
+    }
+
+    function startListening() {
+      if (!isOpen) return;
+      if (!SR) { setState("idle", "Voice input is not supported here. Use Chrome, or type below."); return; }
+      if (busy) return;
+      stopAll();
+
+      rec = new SR();
+      rec.lang = t.lang.value;
+      rec.interimResults = true;
+      rec.continuous = false;
+      rec.maxAlternatives = 1;
+
+      let finalText = "";
+      let gotFinal = false;
+
+      rec.onstart = () => setState("listening", "Listening... speak now");
+      rec.onresult = e => {
+        let interim = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const r = e.results[i];
+          if (r.isFinal) { finalText += r[0].transcript; gotFinal = true; }
+          else interim += r[0].transcript;
+        }
+        t.caption.textContent = "🎤 " + (finalText + interim);
+      };
+      rec.onerror = e => {
+        if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+          handsFree = false;
+          setState("idle", "Microphone is blocked. Allow the mic in your browser, or type below.");
+        } else if (e.error === "no-speech") {
+          handsFree = false;
+          setState("idle", "I did not hear anything. Tap the mic to try again.");
+        } else if (e.error !== "aborted") {
+          setState("idle", "Voice error: " + e.error + ". Tap the mic to retry.");
+        }
+      };
+      rec.onend = () => {
+        rec = null;
+        if (!isOpen) return;
+        if (gotFinal && finalText.trim()) handle(finalText.trim());
+        else if (state === "listening") setState("idle", "Tap the mic and speak");
+      };
+
+      try { rec.start(); } catch { setState("idle", "Could not start the microphone."); }
+    }
+
+    async function handle(text) {
+      if (!isOpen || busy) return;
+      stopAll();
+      t.caption.textContent = "🗣 " + text;
+      setState("thinking", "Thinking...");
+
+      await send(text);
+      if (!isOpen) return;
+
+      const chat = getActive();
+      const last = chat && chat.messages[chat.messages.length - 1];
+      if (last && last.role === "assistant" && !last.error) {
+        speak(last.text);
+      } else {
+        setState("idle", "Something went wrong");
+        t.caption.textContent = last ? last.text.slice(0, 200) : "";
+      }
+    }
+
+    function speakable(md) {
+      return md
+        .replace(/```[\s\S]*?```/g, " code block. ")
+        .replace(/`([^`]*)`/g, "$1")
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+        .replace(/https?:\/\/\S+/g, " link ")
+        .replace(/[*_#>~|]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function pickVoice(lang) {
+      const list = synth.getVoices ? synth.getVoices() : [];
+      const prefix = lang.slice(0, 2).toLowerCase();
+      return list.find(v => v.lang.replace("_", "-").toLowerCase() === lang.toLowerCase())
+        || list.find(v => v.lang.toLowerCase().startsWith(prefix))
+        || null;
+    }
+
+    function speak(raw) {
+      const text = speakable(raw);
+      if (!text) { setState("idle", "Tap the mic and speak"); return; }
+      t.caption.textContent = text.length > 320 ? text.slice(0, 320) + "..." : text;
+
+      const finish = () => {
+        clearTimeout(watchdog);
+        if (!isOpen) return;
+        setState("idle", "Tap the mic and speak");
+        if (handsFree && SR) setTimeout(() => { if (isOpen && state === "idle") startListening(); }, 350);
+      };
+
+      if (!synth || typeof SpeechSynthesisUtterance === "undefined") { finish(); return; }
+
+      const lang = /[ऀ-ॿ]/.test(text) ? "hi-IN" : "en-IN";
+      const parts = text.match(/[^.!?।\n]+[.!?।]*/g) || [text];
+      const chunks = [];
+      let cur = "";
+      for (const p of parts) {
+        if ((cur + p).length > 170 && cur) { chunks.push(cur.trim()); cur = p; }
+        else cur += p;
+      }
+      if (cur.trim()) chunks.push(cur.trim());
+
+      synth.cancel();
+      setState("speaking", "Speaking...");
+      const voice = pickVoice(lang);
+
+      chunks.forEach((c, i) => {
+        const u = new SpeechSynthesisUtterance(c);
+        u.lang = lang;
+        if (voice) u.voice = voice;
+        u.rate = 1;
+        u.pitch = 1;
+        if (i === chunks.length - 1) { u.onend = finish; u.onerror = finish; }
+        synth.speak(u);
+      });
+
+      // safety: some browsers never fire onend
+      clearTimeout(watchdog);
+      watchdog = setTimeout(finish, Math.min(90000, 4000 + text.length * 110));
+    }
+
+    // --- events ---
+    if (t.hero) t.hero.addEventListener("click", () => setTimeout(openTalk, 500));
+    if (t.chip) t.chip.addEventListener("click", openTalk);
+    t.close.addEventListener("click", closeTalk);
+
+    t.mic.addEventListener("click", () => {
+      if (state === "listening") {
+        handsFree = false;
+        stopAll();
+        setState("idle", "Tap the mic and speak");
+      } else if (state === "speaking") {
+        stopAll();
+        setState("idle", "Tap the mic and speak");
+        handsFree = true;
+        startListening();
+      } else {
+        handsFree = true;
+        startListening();
+      }
+    });
+
+    t.lang.addEventListener("change", () => {
+      if (state === "listening") startListening();
+    });
+
+    t.form.addEventListener("submit", e => {
+      e.preventDefault();
+      const v = t.input.value.trim();
+      if (!v) return;
+      t.input.value = "";
+      handle(v);
+    });
+
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape" && isOpen) closeTalk();
+    });
+
+    if (synth && synth.getVoices) { synth.getVoices(); }
   })();
 
   // ---------------------------------------------------------------------------
